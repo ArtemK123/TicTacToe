@@ -1,0 +1,137 @@
+body {
+    margin: 0px;
+    min-width: 350px;
+}
+
+#main {
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
+    height: 100vh;
+    min-height: 440px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    height: 60px;
+    background-color: greenyellow;
+    align-items: center;
+    min-width: 380px;
+}
+
+nav {
+    width: 30vw;
+    min-width: 200px;
+    height: 100%;
+}
+
+nav ul {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    list-style: none;
+}
+
+nav ul li {
+    background-color: lightgray;
+    border: 2px solid black;
+    padding: 5px;
+    border-radius: 20px;
+    min-width: 70px;
+    text-align: center;
+    margin-right: 3.5vw;
+}
+
+header h3 {
+    margin-left: 20px;
+}
+
+#gamearea {
+    width: 350px;
+    margin: auto;
+    height: 450px;
+}
+
+#gameboard {
+    width: 350px;
+    height: 350px;
+    border-spacing: 0px;
+    border: 4px solid white;
+    border-collapse: collapse;
+}
+
+#gameboard td {
+    width: 20%;
+    height: 20%;
+    border: 3px solid black;
+}
+
+#gameboard td:hover {
+    background-color: lightsteelblue;
+}
+
+#score_title {
+    display: flex;
+    justify-content: space-between;
+    height: 20px;
+    margin-top: 30px;
+    align-items: center;
+}
+
+#player_title{
+    margin-left: 45px;
+}
+
+#bot_title {
+    margin-right: 10px;
+}
+
+#score_value {
+    display: flex;
+    justify-content: space-evenly;
+    height: 20px;
+    margin-top: 15px;
+    align-items: center;
+}
+
+#line {
+    width: 10px;
+    height: 1px;
+    background-color: gray;
+}
+
+footer {
+    height: 50px;
+    background-color: lightgray;
+    display: flex;
+    align-content: center;
+}
+
+footer p {
+    padding-left: 20px;
+}
+
+@media (max-height: 550px) {    
+    #gamearea {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        height: 420px;
+    }
+
+    #score_title {
+        margin-top: 10px;
+    }
+    #score_value {
+        margin-top: 10px;
+    }
+    footer {
+        display: none;
+    }
+}
+
+@media (max-height: 500px) {
+    header {
+        display: none;
+    }
+}
