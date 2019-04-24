@@ -29,7 +29,7 @@
 		<p><label for="form_name">Ім'я</label><input id="form_name" name="name"></p>
 		<p><label for="form_organisation">Організація</label><input id="form_organisation" name="org"></p>
 		<p><label for="form_select">Тип звернення</label>
-			<select id="form_select" name="select">
+			<select id="form_select" name="type">
 				<option>Преса</option>
 				<option>Партнерство</option>
 				<option>Інше</option>
@@ -37,8 +37,11 @@
 		</p>
 		<p><label for="form_text">Текст повідомлення</label></p><p><textarea id="form_text" name="text"></textarea></p>
 		<p><label for="form_addiotion">Надіслати додаткове зображенння</label>
-			<input type="file" id="form_addition" name="file"></input></p>		
-		<p><button type="submit" formaction="contacts.html" formmethod="POST" id="form_button">Відправити</button></p>
+			<input type="file" id="form_addition" name="image"></input></p>		
+		<p><button type="submit" formaction="contacts.html" formmethod="POST" id="form_button">Відправити</button>
+		<span id="form_success">&#9745;</span>
+		<span id="form_denied">&#9746;</span>
+		</p>
 	</form>
 	<footer>
 		<p>Copyright 2019 - All rights are reserved</p>

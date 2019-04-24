@@ -1,7 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const url = require("url");
-const querystring = require("querystring");
+const multiparty = require("multiparty");
 const sqlite3 = require("sqlite3");
 
 const server = http.createServer();
@@ -9,9 +9,9 @@ const db = new sqlite3.Database("./feedback/database.db", sqlite3.OPEN_READWRITE
     (err) => {(err != null) ? console.log(err) : 0});
 
 db.run(`CREATE TABLE IF NOT EXISTS Feedback (
-    form_id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     name TEXT,
-    organization TEXT,
+    org TEXT,
     type TEXT,
     body TEXT,
     file_path TEXT);` ,
@@ -63,38 +63,76 @@ let GETRequest = function (req, res) {
     return res;
 };
 
-let collectRequestData = function(request, callback) {
-    const FORM_URLENCODED = 'multipart/form-data'
-    if (request.headers['content-type'] === FORM_URLENCODED) {
-        let body = '';
-        request.on('data', chunk => {
-            body += chunk.toString();
-        });
-        request.on('end', () => {
-            callback(querystring.parse(body));
-        });
+let copyFile = function(from, to) {
+    if (fs.existsSync(to)) {
+        let path = to.split('.');
+        let index = 1;
+        while(fs.existsSync("." + path[1] + "_" + index + "." + path[2])) {
+            index++;
+        }
+        to = "." + path[1] + "_" + index + "." + path[2];
     }
-    else {
-        callback(null);
+    fs.copyFileSync(from, to);
+    return to;
+}
+
+let handleForm = function(req) {
+    if (req.headers['content-type'].indexOf("multipart/form-data") != -1) {
+        let form = new multiparty.Form();
+        form.parse(req, function(err, fields, files) {
+            let record = {};
+            let empty = true;
+            for (let field in fields) {
+                record[field] = fields[field][0];
+                if (record[field] != "" && field != "type") {
+                    empty = false;
+                }
+            }
+            if (!empty) {
+                let pathes = {};
+                for (let fileName in files) {
+                    let file = files[fileName][0];
+                    let name = file['originalFilename'];
+                    let path = "./feedback/feedback_files/" + name;
+                    path = copyFile(file['path'], path);
+                    pathes[name] = path;
+                }
+                for (let file in pathes) {
+                    record['file_path'] = pathes[file];
+                }
+                insertToDatabase(record);
+                return true;
+            }
+
+            return false;
+        })
     }
 };
 
-let writeFormToDatabase = function(data) {
+let insertToDatabase = function (record) {
     let query = `INSERT INTO Feedback
-    (name, organization, type, body, file_path) 
-    VALUES (?), (?), (?), (?), (?)`;
-    console.log(data);
-}
+        (name, org, type, body, file_path) VALUES
+        ((?), (?), (?), (?), (?))`;
+    console.log(record);
+    let values = [];
+    values[0] = record['name'];
+    values[1] = record['org'];
+    values[2] = record['type'];
+    values[3] = record['body'];
+    values[4] = record['file_path'];
+    db.run(query, values, (err) => {(err != null) ? console.log(err) : 0});
+};
 
 let POSTRequest = function(req, res) {
     if (req.headers['content-type'].indexOf("form") != -1) {
-        collectRequestData(req, writeFormToDatabase);
+        let form_status = (handleForm(req)) ? "success" : "denied";
+        res.writeHead(302, {
+            'Location': req.url,
+            'Method': 'GET',
+            'form_status': form_status
+        });
+        res.end();
     }
-    res.writeHead(302, {
-        'Location': req.url,
-        'Method': 'GET'
-    });
-    res.end();
 }
 
 server.on("request", (req, res) => {
