@@ -90,13 +90,11 @@ header h3 {
 }
 
 #form_success {
-    display: none;
     color: green;
     font-size: 20px;
 }
 
 #form_denied {
-    display: none;
     color: red;
     font-size: 20px;
 }
