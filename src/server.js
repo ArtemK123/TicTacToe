@@ -2,25 +2,15 @@ const http = require("http");
 const fs = require("fs");
 const url = require("url");
 const multiparty = require("multiparty");
-const sqlite3 = require("sqlite3");
 
 const server = http.createServer();
 
+const database = require('./db.js');
 let throwError = function(err) {
     if (err) {
         throw err;
     }
 }
-
-const db = new sqlite3.Database("./feedback/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, throwError);
-
-db.run(`CREATE TABLE IF NOT EXISTS Feedback (
-    id INTEGER PRIMARY KEY,
-    name TEXT,
-    org TEXT,
-    type TEXT,
-    body TEXT,
-    file_path TEXT);` , throwError);
 
 const typeTable = {
     "html" : "text/html",
@@ -42,14 +32,14 @@ let findType = function (url) {
 let parseDate = function(date) {
     let string = "" + date.getDate() + '-' + 
     (date.getMonth() + 1) + '-' + 
-    date.getFullYear() + '__' + 
+    date.getFullYear() + '_' + 
     date.getHours() + '-' +
     (date.getMinutes().toString().length == 1 ? ("0" + date.getMinutes()) : date.getMinutes())  + '-' +
     date.getMilliseconds();
     return string;
 }
 
-let handleForm = function(req) {
+let handleForm = function(req, callback) {
     if (req.headers['content-type'].indexOf("multipart/form-data") != -1) {
         let form = new multiparty.Form();
         form.parse(req, function(err, fields, files) {
@@ -62,51 +52,36 @@ let handleForm = function(req) {
                     isValid = true;
                 }
             }
+            record['file_path'] = undefined;
+            let writeRecord = (err) => {
+                if (isValid) {
+                    database.insertRecord(record, throwError);
+                }
+                callback(err, isValid);
+            }
             for (let fileName in files) {
-                //only one iteration
+                //only one iteratiot
 
-                isValid = true;
                 let file = files[fileName][0];
+                if (file['size'] == 0) {
+                    writeRecord();
+                }
+
                 let name = file['originalFilename'].split('.')[0];
                 let expension = file['originalFilename'].split('.')[1];
                 let date = new Date();
                 let path = `./feedback/feedback_files/${name}(${parseDate(date)}).${expension}`;
-
-                fs.copyFile(file['path'], path, throwError);
-                // there isn`t any guarantee of successful copying, so image can be not found in 'path' directory
-                record['file_path'] = path;
+                
+                fs.copyFile(file['path'], path, (err) => {    
+                    if (!err) {
+                        isValid = true;
+                    };
+                    record['file_path'] = path;
+                    writeRecord(err);
+                });
             }
-
-            if (isValid) {
-                insertToDatabase(record);
-                return true;
-            }
-        
-            return false;
         })
     }
-};
-
-let getAllRecords = function(callback) {
-    let query = `SELECT * FROM Feedback`;
-    db.all(query, [], (err, rows) => {
-        let json = JSON.stringify(rows);
-        callback(err, json);
-    });
-};
-
-let insertToDatabase = function (record) {
-    let query = `INSERT INTO Feedback
-        (name, org, type, body, file_path) VALUES
-        ((?), (?), (?), (?), (?))`;
-    console.log(record);
-    let values = [];
-    values[0] = record['name'];
-    values[1] = record['org'];
-    values[2] = record['type'];
-    values[3] = record['body'];
-    values[4] = record['file_path'];
-    db.run(query, values, (err) => {(err != null) ? console.log(err) : 0});
 };
 
 let sendResponseWithData = function(err, res, data, content_type) {
@@ -136,7 +111,7 @@ let GETRequest = function (req, res) {
     if (type == "application/json") {
         let file = path.split('/').pop();
         if (file == "allRecords.json") {
-            getAllRecords((err, data) => {
+            database.getAllRecords((err, data) => {
                 sendResponseWithData(err, res, data, type);    
             })                    
         }
@@ -150,13 +125,30 @@ let GETRequest = function (req, res) {
 
 let POSTRequest = function(req, res) {
     if (req.headers['content-type'].indexOf("form") != -1) {
-        let form_status = (handleForm(req)) ? "success" : "denied";
-        res.writeHead(302, {
-            'Location': req.url,
-            'Method': 'GET',
-            'form_status': form_status
-        });
-        res.end();
+        handleForm(req, (err, successful) => {
+            if (err) {
+                res.writeHead(500, "Cannot handle form");
+                throw err;
+            }
+            let path = url.parse(req.url).pathname;
+            fs.readFile("." + path, "utf-8", (err, html) => {
+                if (err) {
+                    throw err;
+                }
+                let elem;
+                if (successful) {
+                    elem = `<span id="form_success" style="display: inline">&#9745;</span>`;               
+                }
+                else {
+                    elem = `<span id="form_denied" style="display: inline">&#9746;</span>`;
+                }
+                let start = html.slice(0, html.indexOf('</form>'));
+                let end = html.slice(html.indexOf("</form>"));
+                html = start + elem + end;
+                res.writeHead(200, {"Content-type" : "text/html"});
+                res.end(html);
+            })    
+        })
     }
 }
 

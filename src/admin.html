@@ -31,10 +31,10 @@
                 for (record of records) {
                     html += `<div id=record${record['id']}`;
                     for (key in record) {
-                        if (key != "file_path") {
+                        if (key != "file_path" && record[key] != undefined) {
                             html += `<p>${record[key]}</p>`;
                         }
-                        else if (key == "file_path") {
+                        else if (key == "file_path" && record[key] != undefined) {
                             html += 
                             `<picture id=image${record['id']}>
                                 <source srcset="${record['file_path']}">
