@@ -1,3 +1,15 @@
+let makeTimestamp = function() {
+    let date = new Date();
+    let timestamp = "";
+    timestamp += date.getHours() + ':' +
+    (date.getMinutes().toString().length == 1 ? ("0" + date.getMinutes()) : date.getMinutes()) + ":" +
+    date.getMilliseconds() + "_"
+    date.getDate() + "." +
+    (date.getMonth() + 1) + "." +
+    date.getFullYear() + " - ";
+    return timestamp;
+}
+
 let sendPostMessage = function(args) {
     let request = new XMLHttpRequest();
     request.open("POST", "index.html", true);
@@ -6,41 +18,37 @@ let sendPostMessage = function(args) {
 }
 
 let sendStartMessage = function() {
-    let date = new Date();
     let record = {
         source : "system",
         record : "Game started",
-        timestamp : date.toISOString()
+        timestamp : makeTimestamp()
     }
     sendPostMessage(record);
 }
 
 let sendTurnMessage = function(player, cell) {
-    let date = new Date();
     let record = {
         source : player,
         record : cell.id,
-        timestamp : date.toISOString()
+        timestamp : makeTimestamp()
     }
     sendPostMessage(record);
 }
 
 let sendClearMessage = function() {
-    let date = new Date();
     let record = {
         source : "system",
         record : "Board was cleared",
-        timestamp : date.toISOString()
+        timestamp : makeTimestamp()
     }
     sendPostMessage(record);
 }
 
 let sendWinnerMessage = function(winner) {
-    let date = new Date();
     let record = {
         source : "system",
         record : `${winner} has won`,
-        timestamp : date.toISOString()
+        timestamp : makeTimestamp()
     }
     sendPostMessage(record);
 }

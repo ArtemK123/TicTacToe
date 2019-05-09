@@ -73,6 +73,21 @@ header h3 {
     grid-area: content;
 }
 
+.game_records div {
+    margin: 8px;
+    border-bottom: 1px solid black;
+}
+
+.feedback div {
+    margin: 5px;
+    margin-bottom: 20px;
+}
+
+img {
+    max-width: 200px;
+    max-height: 200px;
+}
+
 footer {
     grid-area: footer;
     background-color: lightgray;

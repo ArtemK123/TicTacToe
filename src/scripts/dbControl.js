@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3');
 
-const db = new sqlite3.Database("./feedback/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, 
+const db = new sqlite3.Database("./storage/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, 
 (err) => {(err != null) ? console.log(err) : console.log("Connected to database")});
 
 let showFeedback = `SELECT * FROM Feedback`;
@@ -16,3 +16,9 @@ db.all(clearGame, [], (err, rows)=>{
     }  
     console.log(rows);
 });
+
+db.all(clearFeedback, [], (err, rows) => {
+    if (err) {
+        console.log(err);
+    }
+})

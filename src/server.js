@@ -4,7 +4,7 @@ const url = require("url");
 const multiparty = require("multiparty");
 const pug = require('pug');
 
-const databases = require('./scripts/db.js');
+const databases = require(`${__dirname}/scripts/db.js`);
 
 const server = http.createServer();
 
@@ -30,7 +30,6 @@ const typeTable = {
     "jpg" : "image/jpg",
     "pug" : "text/html"
 }
-
 
 let parseDate = function(date) {
     let string = "" + date.getDate() + '-' + 
@@ -100,7 +99,7 @@ let handleForm = function(req, callback) {
                 let name = file['originalFilename'].split('.')[0];
                 let expension = file['originalFilename'].split('.')[1];
                 let date = new Date();
-                let path = `./storage/feedback_files/${name}(${parseDate(date)}).${expension}`;
+                let path = `${__dirname}/storage/feedback_files/${name}(${parseDate(date)}).${expension}`;
                 
                 fs.copyFile(file['path'], path, (err) => {    
                     if (!err) {
@@ -131,93 +130,11 @@ let sendResponseWithData = function(err, res, data, content_type) {
     }
 }
 
-let GETRequest = function(req, res) {
-    let path = url.parse(req.url).pathname;
-    let query = parseQueryToObj(url.parse(req.url).query);
-    let expension = path.split('.').pop();
-    let type = typeTable[expension];
-    if (path == "/feedbackRecords.json") {
-        feedbackDB.getAllRecords((err, rows) => {
-            let data = JSON.stringify(rows);
-            sendResponseWithData(err, res, data, type);
-        });
-    }
-    else if (path == "/gameRecords.json") {
-        gameDB.getAllRecords((err, rows) => {
-            let data = JSON.stringify(rows);
-            sendResponseWithData(err, res, data, type);
-        })
-    }
-    else if (expension == "pug") {
-        let pugFunction = pug.compileFile("." + path);
-        let data = pugFunction(query);
-        sendResponseWithData(null, res, data, type);
-    }
-    else {
-        let encode = null;
-        if (type != undefined && type.indexOf('text') != -1) {
-            encode = (type.indexOf('text') != -1) ? "utf-8" : null;    
-        }
-        fs.readFile("." + path, encode, (err, data) => {
-            sendResponseWithData(err, res, data, type);
-        });
-    }
-}
-
-let POSTRequest = function(req, res) {
-    let path = url.parse(req.url).pathname;
-    if (path == "/index.html") {
-        let queryData = "";
-        req.on('data', function(data) {
-            queryData += data;
-            if(queryData.length > 1e6) {
-                queryData = "";
-                res.writeHead(413);
-                res.end();
-                req.connection.destroy();
-            }
-        });
-
-        req.on('end', function() {
-            let record = JSON.parse(queryData);
-            gameDB.insertRecord(record, (err) => {
-                if (err) {
-                    res.writeHead(500, "Error while inserting in database");
-                    res.end();
-                    throw err;
-                }
-                else {
-                    res.writeHead(200, "OK");
-                    res.end();
-                }
-            });
-        });
-    }
-
-
-    if (req.headers['content-type'].indexOf("form") != -1) {
-        handleForm(req, (err, successful) => {
-            if (err) {
-                res.writeHead(500, "Server cannot handle form");
-                res.end();
-                throw err;
-            }
-            else {
-                res.writeHead(302, {
-                    'Location' : req.url + `?submited=${successful}`,
-                    'Method' : 'GET'
-                });
-                res.end();
-            }
-        })
-    }
-}
-
-const handleMap = {
+let handleMap = {
     "/contacts.html" : function (req, res) {
         if (req.method == "GET") {
             let query = parseQueryToObj(url.parse(req.url).query);
-            let pathToPugFile = "." + url.parse(req.url).pathname.replace("html", "pug");
+            let pathToPugFile = `${__dirname}` + url.parse(req.url).pathname.replace("html", "pug");
             let pugFunction = pug.compileFile(pathToPugFile);
             let data = pugFunction(query);
             sendResponseWithData(null, res, data, "text/html");    
@@ -291,22 +208,14 @@ const handleMap = {
             if (type != undefined && type.indexOf('text') != -1) {
                 encode = (type.indexOf('text') != -1) ? "utf-8" : null;    
             }
-            fs.readFile("." + path, encode, (err, data) => {
+            fs.readFile(`${__dirname}` + path, encode, (err, data) => {
                 sendResponseWithData(err, res, data, type);
             });
         }
     }
 }
-
 server.on("request", (req, res) => {
     try {
-        /*
-        if (req.method == "GET") {
-            res = GETRequest(req, res);
-        }
-        else if (req.method == "POST") {
-            res = POSTRequest(req, res);
-        }*/
         let path = url.parse(req.url).pathname;
         for (handler in handleMap) {
             if (path.indexOf(handler) != -1) {

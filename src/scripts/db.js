@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3');
 
-const db = new sqlite3.Database("./storage/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, 
-(err) => {(err != null) ? console.log(err) : console.log("Connected to database")});
+const db = new sqlite3.Database(`${__dirname}/../storage/database.db`, sqlite3.OPEN_CREATE | sqlite3.OPEN_READWRITE, 
+(err) => {(err) ? console.log(err) : console.log("Connected to database")});
 
 let databaseAPI = {
     feedback : {
@@ -65,4 +65,3 @@ let databaseAPI = {
 }
 
 module.exports = databaseAPI;
-
