@@ -4,6 +4,7 @@
 	<title>Admin</title>
 	<meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="../css/admin.css">
+    <script src="./scripts/admin.js" defer></script>
 </head>
 <body>
     <header>
@@ -14,41 +15,15 @@
             </ul>
         </nav>
     </header>
-    <div id="feedback_records">
+    <div id="controls">
+        <button id="feedback_button">Записи зворотнього зв'язку</button>
+        <button id="game_button">Backlog гри</button>
+    </div>
+    <div id="records">
+        <!--content from database-->
     </div>
     <footer>
             <p>Copyright 2019 - All rights are reserved</p>
     </footer>
-    
-    <script>
-        xmlhttp = new XMLHttpRequest();
-        //xmlhttp.responseType = "json";
-        xmlhttp.overrideMimeType("application/json");
-        xmlhttp.onreadystatechange = function () {
-            if (this.readyState == 4 && this.status == 200) {
-                let records = JSON.parse(this.responseText);
-                let html = "";
-                for (record of records) {
-                    html += `<div id=record${record['id']}`;
-                    for (key in record) {
-                        if (key != "file_path" && record[key] != undefined) {
-                            html += `<p>${record[key]}</p>`;
-                        }
-                        else if (key == "file_path" && record[key] != undefined) {
-                            html += 
-                            `<picture id=image${record['id']}>
-                                <source srcset="${record['file_path']}">
-                                <img src="${record['file_path']}" alt="image${record['id']}/">
-                            </picture>`;                
-                        }
-                    }
-                    html += "</div>";
-                }
-                document.getElementById("feedback_records").innerHTML = html;
-            }
-        }
-        xmlhttp.open("GET", "allRecords.json", true);
-        xmlhttp.send();
-    </script>
 </body>
 </html>

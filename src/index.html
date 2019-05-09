@@ -4,6 +4,7 @@
 	<meta charset="utf-8">
 	<title>Tic tac toe</title>
 	<link rel="stylesheet" type="text/css" href="../css/index.css">
+	<script src="./scripts/game.js" defer></script>
 </head>
 <body>
 	<div id="main">
@@ -19,50 +20,54 @@
 		<div id="gamearea">
 			<table id="gameboard">
 				<tr>
-					<td id="cell_1"></td>
-					<td id="cell_2"></td>
-					<td id="cell_3"></td>
-					<td id="cell_4"></td>
-					<td id="cell_5"></td>
+					<td id="cell_11" class="cell"></td>
+					<td id="cell_12" class="cell"></td>
+					<td id="cell_13" class="cell"></td>
+					<td id="cell_14" class="cell"></td>
+					<td id="cell_15" class="cell"></td>
 				</tr>
 				<tr>
-					<td id="cell_1"></td>
-					<td id="cell_2"></td>
-					<td id="cell_3"></td>
-					<td id="cell_4"></td>
-					<td id="cell_5"></td>
+					<td id="cell_21" class="cell"></td>
+					<td id="cell_22" class="cell"></td>
+					<td id="cell_23" class="cell"></td>
+					<td id="cell_24" class="cell"></td>
+					<td id="cell_25" class="cell"></td>
 				</tr>
 				<tr>
-					<td id="cell_1"></td>
-					<td id="cell_2"></td>
-					<td id="cell_3"></td>
-					<td id="cell_4"></td>
-					<td id="cell_5"></td>
+					<td id="cell_31" class="cell"></td>
+					<td id="cell_32" class="cell"></td>
+					<td id="cell_33" class="cell"></td>
+					<td id="cell_34" class="cell"></td>
+					<td id="cell_35" class="cell"></td>
 				</tr>
 				<tr>
-					<td id="cell_1"></td>
-					<td id="cell_2"></td>
-					<td id="cell_3"></td>
-					<td id="cell_4"></td>
-					<td id="cell_5"></td>
+					<td id="cell_41" class="cell"></td>
+					<td id="cell_42" class="cell"></td>
+					<td id="cell_43" class="cell"></td>
+					<td id="cell_44" class="cell"></td>
+					<td id="cell_45" class="cell"></td>
 				</tr>
 				<tr>
-					<td id="cell_1"></td>
-					<td id="cell_2"></td>
-					<td id="cell_3"></td>
-					<td id="cell_4"></td>
-					<td id="cell_5"></td>
+					<td id="cell_51" class="cell"></td>
+					<td id="cell_52" class="cell"></td>
+					<td id="cell_53" class="cell"></td>
+					<td id="cell_54" class="cell"></td>
+					<td id="cell_55" class="cell"></td>
 				</tr>
 			</table>
 			<div id="score_title">
-				<p id="player_title">Ваш рахунок</p>
-				<p id="bot_title">Рахунок комп'ютера</p>
+				<p id="X_title">Хрестики</p>
+				<p id="O_title">Нулики</p>
 			</div>
 			<div id="score_value">
-				<p id="player_score">10</p>
+				<p id="X_score">0</p>
 				<div id="line"></div>
-				<p id="bot_score">9</p>
+				<p id="O_score">0</p>
 			</div>
+			<div id="controls">
+				<button id="clear_button">Очистити поле</button>
+				<button id="restart_button">Нова гра</button>
+			</div> 
 		</div>
 		<footer>
 			<p>Copyright 2019 - All rights are reserved</p>

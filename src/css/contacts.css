@@ -84,23 +84,38 @@ header h3 {
     text-align: right;
 }
 
-#contact_form {
+#feedback_form {
+    border-top: 3px solid black;
     margin-top: 20px;
     grid-area: form;
 }
 
-#form_success {
-    color: green;
-    font-size: 20px;
+#feedback_form legend {
+    margin-top: 5px;
+    margin-left: 20px;
 }
 
-#form_denied {
-    color: red;
-    font-size: 20px;
-}
-
-#contact_form p {
+#feedback_form p {
     margin: 10px;
+}
+
+#feedback_form p input {
+    margin-left: 5px;
+}
+
+#form_addition input {
+    margin-top: 5px;
+    margin-left: 0px;
+}
+
+.submited {
+    margin-left: 5px;
+    color: green;
+}
+
+.rejected {
+    margin-left: 5px;
+    color: red;
 }
 
 footer {

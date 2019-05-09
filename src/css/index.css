@@ -51,6 +51,9 @@ header h3 {
     width: 350px;
     margin: auto;
     height: 450px;
+    display: flex;
+    flex-flow: column;    
+    justify-content: space-between;
 }
 
 #gameboard {
@@ -65,6 +68,9 @@ header h3 {
     width: 20%;
     height: 20%;
     border: 3px solid black;
+    text-align: center;
+    vertical-align: middle;
+    -webkit-user-select: none;
 }
 
 #gameboard td:hover {
@@ -75,23 +81,21 @@ header h3 {
     display: flex;
     justify-content: space-between;
     height: 20px;
-    margin-top: 30px;
     align-items: center;
 }
 
-#player_title{
-    margin-left: 45px;
+#X_title{
+    margin-left: 50px;
 }
 
-#bot_title {
-    margin-right: 10px;
+#O_title {
+    margin-right: 60px;
 }
 
 #score_value {
     display: flex;
     justify-content: space-evenly;
     height: 20px;
-    margin-top: 15px;
     align-items: center;
 }
 
@@ -99,6 +103,15 @@ header h3 {
     width: 10px;
     height: 1px;
     background-color: gray;
+}
+
+#clear_button {
+    margin-left: 28px;
+}
+
+#restart_button {
+    float: right;
+    margin-right: 50px;
 }
 
 footer {
@@ -117,13 +130,6 @@ footer p {
         margin-top: 10px;
         margin-bottom: 10px;
         height: 420px;
-    }
-
-    #score_title {
-        margin-top: 10px;
-    }
-    #score_value {
-        margin-top: 10px;
     }
     footer {
         display: none;

@@ -2,15 +2,22 @@ const http = require("http");
 const fs = require("fs");
 const url = require("url");
 const multiparty = require("multiparty");
+const pug = require('pug');
+
+const databases = require('./scripts/db.js');
 
 const server = http.createServer();
 
-const database = require('./db.js');
 let throwError = function(err) {
     if (err) {
         throw err;
     }
 }
+
+const feedbackDB = databases.feedback;
+const gameDB = databases.game;
+feedbackDB.init((err) => {throwError(err)});
+gameDB.init((err) => {throwError(err)});
 
 const typeTable = {
     "html" : "text/html",
@@ -20,14 +27,10 @@ const typeTable = {
     "json" : "application/json",
     "jpeg" : "image/jpeg",
     "png" : "image/png",
-    "jpg" : "image/jpg"
+    "jpg" : "image/jpg",
+    "pug" : "text/html"
 }
 
-let findType = function (url) {
-    let expension = url.split('.').pop();
-    let type = typeTable[expension];
-    return type;
-};
 
 let parseDate = function(date) {
     let string = "" + date.getDate() + '-' + 
@@ -37,6 +40,32 @@ let parseDate = function(date) {
     (date.getMinutes().toString().length == 1 ? ("0" + date.getMinutes()) : date.getMinutes())  + '-' +
     date.getMilliseconds();
     return string;
+}
+
+let parseQueryToObj = function(query) {
+    let res = {};
+    let searchParams = new url.URLSearchParams(query);
+    searchParams.forEach((value, name) => {
+        res[name] = value;
+    });
+    return res;
+}
+
+let readPostBody = function(req, callback) {
+    let queryData = "";
+    req.on('data', function(data) {
+        queryData += data;
+        if(queryData.length > 1e6) {
+            queryData = "";
+            res.writeHead(413);
+            res.end();
+            req.connection.destroy();
+        }
+    });
+
+    req.on('end', function() {
+        callback(queryData);
+    });
 }
 
 let handleForm = function(req, callback) {
@@ -55,22 +84,23 @@ let handleForm = function(req, callback) {
             record['file_path'] = undefined;
             let writeRecord = (err) => {
                 if (isValid) {
-                    database.insertRecord(record, throwError);
+                    feedbackDB.insertRecord(record, throwError);
                 }
                 callback(err, isValid);
             }
             for (let fileName in files) {
-                //only one iteratiot
+                //only one iteration
 
                 let file = files[fileName][0];
                 if (file['size'] == 0) {
                     writeRecord();
+                    return;
                 }
 
                 let name = file['originalFilename'].split('.')[0];
                 let expension = file['originalFilename'].split('.')[1];
                 let date = new Date();
-                let path = `./feedback/feedback_files/${name}(${parseDate(date)}).${expension}`;
+                let path = `./storage/feedback_files/${name}(${parseDate(date)}).${expension}`;
                 
                 fs.copyFile(file['path'], path, (err) => {    
                     if (!err) {
@@ -101,68 +131,192 @@ let sendResponseWithData = function(err, res, data, content_type) {
     }
 }
 
-let GETRequest = function (req, res) {
+let GETRequest = function(req, res) {
     let path = url.parse(req.url).pathname;
-    if (path.indexOf(".") == -1) {
-        path += ".html";
+    let query = parseQueryToObj(url.parse(req.url).query);
+    let expension = path.split('.').pop();
+    let type = typeTable[expension];
+    if (path == "/feedbackRecords.json") {
+        feedbackDB.getAllRecords((err, rows) => {
+            let data = JSON.stringify(rows);
+            sendResponseWithData(err, res, data, type);
+        });
     }
-    let type = findType(path);
-    let encode = (type.indexOf('text') != -1) ? "utf-8" : null;
-    if (type == "application/json") {
-        let file = path.split('/').pop();
-        if (file == "allRecords.json") {
-            database.getAllRecords((err, data) => {
-                sendResponseWithData(err, res, data, type);    
-            })                    
-        }
+    else if (path == "/gameRecords.json") {
+        gameDB.getAllRecords((err, rows) => {
+            let data = JSON.stringify(rows);
+            sendResponseWithData(err, res, data, type);
+        })
+    }
+    else if (expension == "pug") {
+        let pugFunction = pug.compileFile("." + path);
+        let data = pugFunction(query);
+        sendResponseWithData(null, res, data, type);
     }
     else {
+        let encode = null;
+        if (type != undefined && type.indexOf('text') != -1) {
+            encode = (type.indexOf('text') != -1) ? "utf-8" : null;    
+        }
         fs.readFile("." + path, encode, (err, data) => {
             sendResponseWithData(err, res, data, type);
         });
     }
-};
+}
 
 let POSTRequest = function(req, res) {
+    let path = url.parse(req.url).pathname;
+    if (path == "/index.html") {
+        let queryData = "";
+        req.on('data', function(data) {
+            queryData += data;
+            if(queryData.length > 1e6) {
+                queryData = "";
+                res.writeHead(413);
+                res.end();
+                req.connection.destroy();
+            }
+        });
+
+        req.on('end', function() {
+            let record = JSON.parse(queryData);
+            gameDB.insertRecord(record, (err) => {
+                if (err) {
+                    res.writeHead(500, "Error while inserting in database");
+                    res.end();
+                    throw err;
+                }
+                else {
+                    res.writeHead(200, "OK");
+                    res.end();
+                }
+            });
+        });
+    }
+
+
     if (req.headers['content-type'].indexOf("form") != -1) {
         handleForm(req, (err, successful) => {
             if (err) {
-                res.writeHead(500, "Cannot handle form");
+                res.writeHead(500, "Server cannot handle form");
+                res.end();
                 throw err;
             }
-            let path = url.parse(req.url).pathname;
-            fs.readFile("." + path, "utf-8", (err, html) => {
+            else {
+                res.writeHead(302, {
+                    'Location' : req.url + `?submited=${successful}`,
+                    'Method' : 'GET'
+                });
+                res.end();
+            }
+        })
+    }
+}
+
+const handleMap = {
+    "/contacts.html" : function (req, res) {
+        if (req.method == "GET") {
+            let query = parseQueryToObj(url.parse(req.url).query);
+            let pathToPugFile = "." + url.parse(req.url).pathname.replace("html", "pug");
+            let pugFunction = pug.compileFile(pathToPugFile);
+            let data = pugFunction(query);
+            sendResponseWithData(null, res, data, "text/html");    
+        }
+        else if (req.method == "POST") {
+            handleForm(req, (err, successful) => {
                 if (err) {
+                    res.writeHead(500, "Server cannot handle form");
+                    res.end();
                     throw err;
                 }
-                let elem;
-                if (successful) {
-                    elem = `<span id="form_success" style="display: inline">&#9745;</span>`;               
-                }
                 else {
-                    elem = `<span id="form_denied" style="display: inline">&#9746;</span>`;
+                    res.writeHead(302, {
+                        'Location' : req.url + `?submited=${successful}`,
+                        'Method' : 'GET'
+                    });
+                    res.end();
                 }
-                let start = html.slice(0, html.indexOf('</form>'));
-                let end = html.slice(html.indexOf("</form>"));
-                html = start + elem + end;
-                res.writeHead(200, {"Content-type" : "text/html"});
-                res.end(html);
-            })    
-        })
+            })
+        }
+    },
+    "/storage/database.db" : function (req, res) {
+        if (req.method == "GET") {
+            let queries = parseQueryToObj(url.parse(req.url).query);
+            let type = "apllication/json";
+            if (queries["table"] == "feedback") {
+                feedbackDB.getAllRecords((err, rows) => {
+                    let data = JSON.stringify(rows);
+                    sendResponseWithData(err, res, data, type);
+                });
+            }
+            else if (queries["table"] == "game_records") {
+                gameDB.getAllRecords((err, rows) => {
+                    let data = JSON.stringify(rows);
+                    sendResponseWithData(err, res, data, type);
+                })
+            }
+        }
+    },
+    "/index.html" : function(req, res) {
+        let path = "." + url.parse(req.url).pathname;
+        if (req.method == "GET") {
+            fs.readFile(path, "utf-8", (err, data) => {
+                sendResponseWithData(err, res, data, "text/html");
+            });
+        }
+        else if (req.method == "POST") {
+            readPostBody(req, (queryData) => {
+                let record = JSON.parse(queryData);
+                gameDB.insertRecord(record, (err) => {
+                    if (err) {
+                        res.writeHead(500, "Error while inserting in database");
+                        res.end();
+                        throw err;
+                    }
+                    else {
+                        res.writeHead(200, "OK");
+                        res.end();
+                    }
+                });
+            })
+        }
+    },
+    //default option
+    "" : function(req, res) {
+        if (req.method == "GET") {
+            let path = url.parse(req.url).pathname;
+            let expension = path.split('.').pop();
+            let type = typeTable[expension];
+            let encode = null;
+            if (type != undefined && type.indexOf('text') != -1) {
+                encode = (type.indexOf('text') != -1) ? "utf-8" : null;    
+            }
+            fs.readFile("." + path, encode, (err, data) => {
+                sendResponseWithData(err, res, data, type);
+            });
+        }
     }
 }
 
 server.on("request", (req, res) => {
     try {
+        /*
         if (req.method == "GET") {
             res = GETRequest(req, res);
         }
         else if (req.method == "POST") {
             res = POSTRequest(req, res);
+        }*/
+        let path = url.parse(req.url).pathname;
+        for (handler in handleMap) {
+            if (path.indexOf(handler) != -1) {
+                handleMap[handler](req, res);
+                break;
+            }
         }
     }
     catch (err) {
-        console.log(err.message);
+        console.log(err);
     }
 });
 
