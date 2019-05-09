@@ -175,7 +175,8 @@ let handleMap = {
         }
     },
     "/index.html" : function(req, res) {
-        let path = "." + url.parse(req.url).pathname;
+        let path = `${__dirname}` + url.parse(req.url).pathname;
+        console.log(path);
         if (req.method == "GET") {
             fs.readFile(path, "utf-8", (err, data) => {
                 sendResponseWithData(err, res, data, "text/html");
