@@ -1,0 +1,135 @@
+#game_main {
+    margin: 0px;
+    min-width: 350px;
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
+    height: 100vh;
+    min-height: 440px;
+}
+
+#game_main header {
+    display: flex;
+    justify-content: space-between;
+    height: 60px;
+    background-color: greenyellow;
+    align-items: center;
+    min-width: 380px;
+}
+
+#game_main nav {
+    width: 30vw;
+    min-width: 200px;
+    height: 100%;
+}
+
+#game_main nav ul {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    list-style: none;
+}
+
+#game_main nav ul li {
+    background-color: lightgray;
+    border: 2px solid black;
+    padding: 5px;
+    border-radius: 20px;
+    min-width: 70px;
+    text-align: center;
+    margin-right: 3.5vw;
+}
+
+#game_main header h3 {
+    margin-left: 20px;
+}
+
+#game_main .gamearea {
+    width: 350px;
+    margin: auto;
+    height: 450px;
+    display: flex;
+    flex-flow: column;    
+    justify-content: space-between;
+}
+
+#game_main .gameboard {
+    width: 350px;
+    height: 350px;
+    border-spacing: 0px;
+    border: 2px solid red;
+    border-collapse: collapse;
+}
+
+#game_main .gameboard button {
+    width: 70px;
+    height: 70px;
+    text-align: center;
+    vertical-align: middle;
+    -webkit-user-select: none;
+}
+
+#game_main .score_title {
+    display: flex;
+    justify-content: space-between;
+    height: 20px;
+    align-items: center;
+}
+
+#game_main .X_title{
+    margin-left: 50px;
+}
+
+#game_main .O_title {
+    margin-right: 60px;
+}
+
+#game_main .score_value {
+    display: flex;
+    justify-content: space-evenly;
+    height: 20px;
+    align-items: center;
+}
+
+#game_main .line {
+    width: 10px;
+    height: 1px;
+    background-color: gray;
+}
+
+#game_main .clear_button {
+    margin-left: 28px;
+}
+
+#game_main .restart_button {
+    float: right;
+    margin-right: 50px;
+}
+
+#game_main footer {
+    height: 50px;
+    background-color: lightgray;
+    display: flex;
+    align-items: center;
+}
+
+#game_main footer p {
+    padding-left: 20px;
+}
+
+@media (max-height: 550px) {    
+    #game_main .gamearea {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        height: 420px;
+    }
+    #game_main footer {
+        display: none;
+    }
+}
+
+@media (max-height: 500px) {
+    #game_main header {
+        display: none;
+    }
+}

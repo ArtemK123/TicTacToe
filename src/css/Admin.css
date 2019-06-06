@@ -1,0 +1,97 @@
+#admin_main {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-areas:
+    "header header header"
+    ". controls ."
+    ". content ."
+    "footer footer footer";
+    grid-template-columns: 1fr 600px 1fr;
+    grid-template-rows: 60px 50px 1fr 50px;
+    width: 100%;
+    height: 100vh;
+}
+
+@media (max-width: 600px) {
+    #admin_main {
+        grid-template-columns: 1fr 400px 1fr;
+    }
+}
+
+#admin_main header {
+    grid-area: header;
+    display: flex;
+    justify-content: space-between;
+    background-color: greenyellow;
+    align-items: center;
+    min-width: 400px;
+}
+
+#admin_main nav {
+    width: 30vw;
+    min-width: 200px;
+    height: 100%;
+}
+
+#admin_main nav ul {
+    width: 100%;
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    list-style: none;
+}
+
+#admin_main nav ul li {
+    background-color: lightgray;
+    border: 2px solid black;
+    padding: 5px;
+    border-radius: 20px;
+    min-width: 70px;
+    text-align: center;
+    margin-right: 3.5vw;
+}
+
+#admin_main header h3 {
+    margin-left: 20px;
+}
+
+#admin_main .admin_controls {
+    grid-area: controls;
+    display: flex;
+    justify-content: space-around;
+}
+
+#admin_main .admin_controls button {
+    margin: 10px;
+}
+
+#admin_main .records {
+    grid-area: content;
+}
+
+#admin_main .game_records div {
+    margin: 8px;
+    border-bottom: 1px solid black;
+}
+
+#admin_main .feedback div {
+    margin: 5px;
+    margin-bottom: 20px;
+}
+
+#admin_main img {
+    max-width: 200px;
+    max-height: 200px;
+}
+
+#admin_main footer {
+    grid-area: footer;
+    background-color: lightgray;
+    display: flex;
+    align-items: center;
+}
+
+#admin_main footer p {
+    padding-left: 20px;
+}
