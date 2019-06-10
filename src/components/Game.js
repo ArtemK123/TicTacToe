@@ -77,7 +77,9 @@ class Gamearea extends React.Component {
             name: null,
             redirectUrl: null,
             gameState: "loaded",
-            isXNext: true
+            isXNext: true,
+            gameid: -1,
+            sign: null
         };    
     }
     showName() {
@@ -106,33 +108,60 @@ class Gamearea extends React.Component {
                 console.log("data is sent");
                 this.webSocket.send(JSON.stringify({
                     query: "make_move",
-                    footprint: this.state.history,
                     cell: i,
-                    jwt: localStorage.getItem('jwt')
+                    jwt: localStorage.getItem('jwt'),
+                    sign: this.sign
                 }))
             }
         }
     }
-    componentDidMount() {
-        let webSocket = localStorage.getItem("webSocket");
-        if (!webSocket) {
-            let connection = new WebSocket("ws://localhost:8000");
-            connection.onopen(() => {
-                localStorage.setItem({'webSocket' : connection})
-            });
-        }
+    componentWillUnmount() {
+        if (this.webSocket) this.webSocket.close();
     }
+
     startGame(event) {
         let token = localStorage.getItem("jwt");
-        let webSocket = localStorage.getItem("webSocket");
-        webSocket.send(JSON.stringify({
-            jwt: token,
-            query: "start"
-        }));
-        localStorage.setItem({"webSocket": webSocket});
-
-
-
+        if (!this.webSocket) {
+            let socket = new WebSocket("ws://localhost:8000");
+            socket.onopen = () => {
+                this.webSocket = socket;
+                this.webSocket.send(JSON.stringify({
+                    jwt: token,
+                    query: "start"
+                }), (err) => {console.log("Connected to server")});
+            };
+            socket.onmessage = (mEvent) => {
+                let message = JSON.parse(mEvent.data);
+                if (message.query === "change_state") {
+                    if (message.state === "init") {
+                        this.setState({
+                            gameId: message.gameId,
+                            sign: message.sign,
+                            isXNext: ((this.sign === "X") ? true : false),
+                            gameState: "searching"
+                        });
+                    }
+                    if (message.state === "found") {
+                        this.setState({gameState: "playing"})
+                    }
+                    if (message.state === "gameover") {
+                        this.setState({gameState: "gameover"})
+                    }
+                }
+                if (message.query === "step") {
+                    this.setState({
+                        squares: message.footprint,
+                        isXNext: message.isXNext
+                    });
+                }
+            }
+        }
+        else {
+            this.webSocket.send(JSON.stringify({
+                jwt: token,
+                query: "start"
+            }));
+        }
         
         // if (this.state.gameState === 'loaded' || this.state.gameState === 'gameover') {
         //     let webSocket = new WebSocket("ws://localhost:8000");

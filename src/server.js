@@ -358,32 +358,31 @@ wss.checkWinner = function(footPrint) {
 
 wss.winningCombinations = createCombinations();
 
-let verify = async function (jwt)  {
-    let promise = () => {
-        return new Promise((resolve, reject) => {
-            accountsDB.getRecord({"jwt": jwt}, (err, record) => {
-                (err) ? reject(err) : resolve(record);
-            })
-        })
-    };
-    return await promise().then((record) => record != null);
-}
-
 wss.on('connection', function connection(client) {
     client.on('message', function incoming(json) {
         try {
             let message = JSON.parse(json);
             if (message.query === "start") {
-                if (!message.jwt) {
-                    client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
-                }
-                else {
-                    console.log(verify(message.jwt));
-                }
+                accountsDB.getRecord({'jwt' : message.jwt}, (err, record) => {
+                    if (!record) {
+                        client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
+                    }
+                    else {
+                        //create new game here
+                    }
+                });
+
             }
-            
-
-
+            else if (message.query === "turn") {
+                accountsDB.getRecord({'jwt' : message.jwt}, (err, record) => {
+                    if (!record) {
+                        client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
+                    }
+                    else {
+                        // Change board. Check winner.
+                    }
+                });
+            }
 
             //     let index = rooms[request.roomId].clients.indexOf("Placeholder");
             //     if (index === 0) {
@@ -437,7 +436,6 @@ wss.on('connection', function connection(client) {
         }
     });
 });
-
 
 server.on("request", (req, res) => {
     try {
