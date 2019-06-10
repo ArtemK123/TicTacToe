@@ -3,6 +3,8 @@ const fs = require("fs");
 const url = require("url");
 const multiparty = require("multiparty");
 const database = require(`${__dirname}/scripts/mongoDB.js`);
+const jwt = require('jsonwebtoken');
+const WebSocket = require('ws');
 
 database.open((err) => {
     if (err) {
@@ -12,16 +14,15 @@ database.open((err) => {
 });
 
 const server = http.createServer();
+server.listen(8080, () => console.log("Node server is running on port 8080"));
+const wss = new WebSocket.Server({ port: 8000 }, () => {console.log("WebSocket server is running on port 8000")});
 
-let throwError = function(err) {
-    if (err) {
-        throw err;
-    }
-}
+let rooms = [];
+const jwtKey = "shhhh";
 
 const feedbackDB = database.feedback;
 const gameDB = database.game;
-
+const accountsDB = database.accounts;
 const typeTable = {
     "html" : "text/html",
     "css" : "text/css",
@@ -32,7 +33,7 @@ const typeTable = {
     "png" : "image/png",
     "jpg" : "image/jpg",
     "pug" : "text/html"
-}
+};
 
 let parseDate = function(date) {
     let string = "" + date.getDate() + '-' + 
@@ -42,7 +43,7 @@ let parseDate = function(date) {
     (date.getMinutes().toString().length === 1 ? ("0" + date.getMinutes()) : date.getMinutes())  + '-' +
     date.getMilliseconds();
     return string;
-}
+};
 
 let parseQueryToObj = function(query) {
     let res = {};
@@ -51,7 +52,7 @@ let parseQueryToObj = function(query) {
         res[name] = value;
     });
     return res;
-}
+};
 
 let readPostBody = function(req, res, callback) {
     let queryData = "";
@@ -66,18 +67,18 @@ let readPostBody = function(req, res, callback) {
     });
 
     req.on('end', function() {
-        callback(queryData);
+        callback(req, res, queryData);
     });
-}
+};
 
 let handleForm = function(req, callback) {
     if (req.headers['content-type'].indexOf("multipart/form-data") !== -1) {
         let form = new multiparty.Form();
         form.parse(req, function(err, fields, files) {
-            if (err) {throwError(err)};
+            if (err) throw err;
             let record = {};
             let isValid = false; // preventing of an empty form
-            for (let field in fields) {
+            for (let field of ['name', 'org', 'type', 'body']) {
                 record[field] = fields[field][0];
                 if (record[field] !== "" && field !== "type") {
                     isValid = true;
@@ -86,11 +87,11 @@ let handleForm = function(req, callback) {
             record['file_path'] = "";
             let writeRecord = (err) => {
                 if (isValid) {
-                    feedbackDB.insertRecord(record, throwError);
+                    feedbackDB.insertRecord(record, (err) => {if (err) throw err});
                 }
                 callback(err, isValid);
             }
-            if (files) {
+            if (files["file"]) {
                 let file = files["file"][0];
                 let name = file['originalFilename'].split('.')[0];
                 let expension = file['originalFilename'].split('.')[1];
@@ -105,7 +106,7 @@ let handleForm = function(req, callback) {
                     writeRecord(err);
                 });
             }
-            else{
+            else {
                 writeRecord();
             }
         })
@@ -131,23 +132,87 @@ let sendResponseWithData = function(err, res, data, content_type) {
 
 let handleMap = {
     "/contacts" : function (req, res) {
-            if (req.method === "POST") {
-                handleForm(req, (err, successful) => {
+        if (req.method === "POST") {
+            handleForm(req, (err, successful) => {
+            if (err) {
+                res.writeHead(500, "Server cannot handle form");
+                res.end();
+                throw err;
+            }
+            else {
+                if (successful) {
+                    res.writeHead(200, "OK");    
+                }
+                else {
+                    res.writeHead(204, "No content");
+                }
+                res.end();
+            }
+        })}
+    },
+    "/registration" : function(req, res) {
+        if (req.method === "GET") {
+            let queries = parseQueryToObj(url.parse(req.url).query);
+            accountsDB.getRecord({email: queries['email']}, (err, record) => {
                 if (err) {
-                    res.writeHead(500, "Server cannot handle form");
+                    res.writeHead(500);
                     res.end();
                     throw err;
                 }
+                if (record) {
+                    res.writeHead(200, "Account is found");
+                    res.end(JSON.stringify({"found": true}));            
+                }
                 else {
-                    if (successful) {
-                        res.writeHead(200, "OK");    
-                    }
-                    else {
-                        res.writeHead(400, "Error");
-                    }
-                    res.end();
+                    res.writeHead(203, "Account isn`t found");
+                    res.end(JSON.stringify({"found": false}));
                 }
             })
+        }
+        else if (req.method === "POST") {
+            readPostBody(req, res, (req, res, data) => {
+                let newAccount = JSON.parse(data).account;
+                newAccount.jwt = "";
+                newAccount.isAdmin = false;
+                newAccount.loses = 0;
+                newAccount.wins = 0;
+                console.log("New user created", newAccount);
+                accountsDB.insertRecord(newAccount, (err, result) => {
+                    if (err) {
+                        res.writeHead(500);
+                        res.end();
+                        throw res;
+                    }
+                    else {
+                        res.writeHead(200);
+                        res.end();
+                    };
+                });    
+            })
+        }
+    },
+    "/login": function(req, res) {
+        if (req.method === "GET") {
+            let query = parseQueryToObj(url.parse(req.url).query);
+            accountsDB.getRecord({email: query.email}, (err, result) => {
+                if (err) throw err;
+                if (!result) {
+                    res.writeHead(203, "Account with this email not found. Please, create new account");
+                    res.end();
+                }
+                else if (result.password !== query['password']) {
+                    res.writeHead(204, "Wrong password");
+                    res.end();
+                } 
+                else {
+                    // user identified - jwt will be created
+                    let token = jwt.sign({email: result.email, admin: result.isAdmin, name: result.name}, jwtKey);
+                    res.writeHead(200, "Access allowed");
+                    res.end(JSON.stringify({jwt: token}));
+                    result.jwt = token;
+                    accountsDB.updateRecord({email: result.email}, result, (err, res) => {if (err) throw err});
+                }
+            });
         }
     },
     "/storage/database" : function (req, res) {
@@ -169,14 +234,11 @@ let handleMap = {
         }
     },
     "/game" : function(req, res) {
-        let path = `${__dirname}` + url.parse(req.url).pathname;
         if (req.method === "POST") {
             readPostBody(req, (queryData) => {
-                let record = JSON.parse(queryData);
+                let record = JSON.parse(queryData.account);
                 gameDB.insertRecord(record, (err) => {
-                    if (err) {
-                        res.writeHead(500, "Error while inserting in database");
-                        res.end();
+                    if (err) { 
                         throw err;
                     }
                     else {
@@ -185,6 +247,57 @@ let handleMap = {
                     }
                 });
             })
+        }
+        else if (req.method === 'GET') {
+            let vars = parseQueryToObj(url.parse(req.url).query);
+            if (vars.query === "getName") {
+                accountsDB.getRecord({jwt: vars.jwt}, (err, record) => {
+                    if (record) {
+                        res.writeHead(200, "Found", {'Content-type' : 'application/json'});
+                        res.end(JSON.stringify({"name": record.name}));
+                    }
+                    else {
+                        res.writeHead(203, "Not found");
+                        res.end();
+                    }
+                })
+            } 
+            else if (vars.query === "startGame") {
+                accountsDB.getRecord({jwt: vars.jwt}, (err, record) => {
+                    if (err) throw err;
+                    if (!record) {
+                        res.writeHead(203, "Player should sign in first");
+                        res.end(JSON.stringify({redirectUrl:"/login", result: "redirect"}));    
+                    }
+                    else {
+                        let availableRoom = null;
+                        for (let room of rooms) {
+                            if (room.clients.length < 2) {
+                                availableRoom = room;
+                            }
+                        }
+                        if (!availableRoom) {
+                            let index = rooms.length;
+                            if (index > 20) {
+                                res.writeHead(204, "All rooms are full");
+                                res.end(JSON.stringify({result: "denied"}));
+                            }
+                            availableRoom = {
+                                id: index,
+                                clients: [],
+                                footPrint: null,
+                                isXNext: true,
+                                isPlaying: false
+                            };
+                            rooms.push(availableRoom);
+                        }
+                        // placeholder for preventing concurency issues
+                        availableRoom.clients.push("Placeholder");
+                        res.writeHead(200, "Found");
+                        res.end(JSON.stringify({roomId: availableRoom.id, result: "found"}));
+                    } 
+                })
+            }
         }
     },
     //default option
@@ -204,9 +317,130 @@ let handleMap = {
     }
 }
 
+let createCombinations = function() {
+    let winningCombinations = [];
+    let diagonalCombination1 = [];
+    let diagonalCombination2 = [];
+
+    for (let i = 0; i < 5; i++) {
+        let horizontalCombination = [];
+        let verticalCombination = [];
+        for (let j = 0; j < 5; j++) {
+            horizontalCombination.push(i * 5 + j);
+            verticalCombination.push(j * 5 + i);
+        }
+        winningCombinations.push(horizontalCombination);
+        winningCombinations.push(verticalCombination);
+        diagonalCombination1.push(5 * i + i);
+        diagonalCombination2.push(5 * i + (4 - i));
+    }
+    winningCombinations.push(diagonalCombination1);
+    winningCombinations.push(diagonalCombination2);
+    return winningCombinations;
+}
+
+wss.checkWinner = function(footPrint) {
+    for (let i = 0; i < this.winningCombinations.length; i++) {
+        let positions = this.winningCombinations[i];
+        let winner = footPrint[positions[0]];
+        let isWinner = true;
+        for (let i = 1; i < positions.length; i++) {
+            if (!winner || winner !== footPrint[positions[i]]) {
+                isWinner = false;          
+            }
+        } 
+        if (isWinner) {
+            return winner;
+        }
+    }
+    return null
+}
+
+wss.winningCombinations = createCombinations();
+
+let verify = async function (jwt)  {
+    let promise = () => {
+        return new Promise((resolve, reject) => {
+            accountsDB.getRecord({"jwt": jwt}, (err, record) => {
+                (err) ? reject(err) : resolve(record);
+            })
+        })
+    };
+    return await promise().then((record) => record != null);
+}
+
+wss.on('connection', function connection(client) {
+    client.on('message', function incoming(json) {
+        try {
+            let message = JSON.parse(json);
+            if (message.query === "start") {
+                if (!message.jwt) {
+                    client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
+                }
+                else {
+                    console.log(verify(message.jwt));
+                }
+            }
+            
+
+
+
+            //     let index = rooms[request.roomId].clients.indexOf("Placeholder");
+            //     if (index === 0) {
+            //         // first player in the room
+            //         rooms[request.roomId].clients[index] = client;
+            //         client.room = request.roomId;
+            //         client.jwt = request.jwt;
+            //         client.sign = "X";
+            //         client.send(JSON.stringify({query: "change_state", state: "serching", sign: "X"}));
+            //     }
+            //     else if (index === 1) {
+            //         // second player in the room
+            //         rooms[request.roomId].clients[index] = client;
+            //         client.room = request.roomId;
+            //         client.room.isPlaying = true;
+            //         client.sign = "O";
+            //         client.jwt = request.jwt;
+            //         client.send(JSON.stringify({query: "change_state", state: "found", sign: "O"}));
+            //     }
+            //     else {
+            //         throw new Error("Wrong index of client");
+            //     }
+            // }
+            // else if (request.query === "make_move") {
+            //     if (request.jwt !== client.jwt) throw new Error("Wrong jwt");
+            //     let sign = (client.room.isXNext) ? "X" : "O";
+            //     client.room.isXNext = !client.room.isXNext;
+            //     client.room.footPrint[request.i] = sign;
+            //     let pushMessageToRoom = function(message, room) {
+            //         room.clients[0].send(message);
+            //         room.clients[1].send(message);
+            //     }
+            //     let winner = wss.checkWinner(client.room.footPrint);
+            //     if (winner) {
+            //         // updating accounts
+            //         accountsDB.getRecord({jwt: client.room.clients[0].jwt}, (err, record) => {
+            //             (winner === "X") ? record.wins++ : record.loses++;
+            //             accountsDB.updateRecord({jwt: client.room.clients[0].jwt}, record);
+            //         });
+            //         accountsDB.getRecord({jwt: client.room.clients[1].jwt}, (err, record) => {
+            //             (winner === "O") ? record.wins++ : record.loses++;
+            //             accountsDB.updateRecord({jwt: client.room.clients[1].jwt}, record);
+            //         });
+            //         pushMessageToRoom({query: "change_state", "winner": winner, footPrint: client.room.footPrint}, client.room);
+            //     }
+            //     pushMessageToRoom({query: "new_turn", footPrint: client.room.footPrint, isXNext: client.room.isXNext}, client.room);
+            // } 
+        } 
+        catch (err) {
+            console.log(err.message);
+        }
+    });
+});
+
+
 server.on("request", (req, res) => {
     try {
-        //check cookie
         let path = url.parse(req.url).pathname;
         for (let handler in handleMap) {
             if (path.indexOf(handler) !== -1) {
@@ -214,11 +448,10 @@ server.on("request", (req, res) => {
                 break;
             }
         }
-        // else login
     }
     catch (err) {
         console.log(err);
+        res.writeHead(500);
+        res.end();
     }
 });
-
-server.listen(8080, () => console.log("Server running on port 8080"));

@@ -1,0 +1,11 @@
+[33mcommit aac9d0037096214bc3be9e1e014630504318581d[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;32mreact_verion[m[33m)[m
+Author: ArtemK <artemk123334@gmail.com>
+Date:   Thu Jun 6 22:36:47 2019 +0300
+
+    All inteface rewrited using React
+
+[33mcommit 246c22975ceec86b86ff34f8116946250e780aac[m
+Author: ArtemK <artemk123334@gmail.com>
+Date:   Sun Jun 2 12:42:27 2019 +0300
+
+    Initial commit from Create React App

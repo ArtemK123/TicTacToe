@@ -1,8 +1,8 @@
 const MongoClient = require("mongodb").MongoClient;
-const sqlite3 = require('sqlite3');
+// const sqlite3 = require('sqlite3');
 
-const sqlite = new sqlite3.Database("./storage/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, 
-(err) => {(err != null) ? console.log(err) : console.log("Connected to database")});
+// const sqlite = new sqlite3.Database("./storage/database.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, 
+// (err) => {(err != null) ? console.log(err) : console.log("Connected to database")});
 
 let showFeedback = `SELECT * FROM Feedback`;
 let showGame = `SELECT * FROM Game_records`;
@@ -26,6 +26,12 @@ db.all(clearFeedback, [], (err, rows) => {
 
 const mongoClient = new MongoClient("mongodb://localhost:27017/", {useNewUrlParser: true});
 mongoClient.connect((err, client) => {
-    client.db("tictactoeDB").collection("feedback").drop();
+    // client.db('tictactoeDB').collection('game').find().toArray((err, rows) => {
+    //     for (let row of rows) {
+    //         console.log(row);
+    //     }
+    //     console.log("end of rows");
+    // });
+    client.db('tictactoeDB').collection('accounts').deleteMany();
     client.close();
 })

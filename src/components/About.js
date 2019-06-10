@@ -23,7 +23,7 @@ class About extends React.Component {
                         Розмір поля може бути різними - у даному випадку гра ведеться на полі 5 на 5.
                         Першими зазвичай починають хрестики. Нехай щастить у грі!
                     </p>
-                    <video className="info_video" src ={video} controls="controls"></video>
+                    <video className="info_video" src={video} controls="controls"></video>
                 </div>
                 <footer>
                     <p>Copyright 2019 - All rights are reserved</p>

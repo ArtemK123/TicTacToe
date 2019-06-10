@@ -14,9 +14,9 @@ document.getElementById("feedback_button").onclick = function () {
             let html = "";
             let id = 0;
             let stringKeys = ["name", "org", "type", "body"];
-            for (let record of records) {
+            for (record of records) {
                 html += `<div id=record${id} class="record">`;
-                for (let key of stringKeys) {
+                for (key of stringKeys) {
                     if (record[key] != undefined) {
                         html += `<p class="${key}">${key} - ${record[key]}</p>`;
                     }
@@ -44,7 +44,7 @@ document.getElementById("game_button").onclick = function() {
             let records = JSON.parse(this.responseText);
             let html = "";
             let id = 0;
-            for (let record of records) {
+            for (record of records) {
                 html += `<div id=record${id} class="record">`;
                 html += `<p class="record_title">${id}  -  ${record.timestamp}</p>`;
                 html += `<p class="record_body">${record.source}: ${record['record']}</p>`;

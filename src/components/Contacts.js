@@ -12,13 +12,13 @@ class Form extends React.Component {
             org: "",
             type: "Пресса",
             body: "",
-            file: null,
+            file: undefined,
             success: null
         }
     }
 
     updateState(event) {
-        if (event.target.name === "image") {
+        if (event.target.name === "file") {
             this.setState({"file": event.target.files[0]});
         }
         else {
@@ -36,7 +36,7 @@ class Form extends React.Component {
             }
             else if (key === "file") {
                 form.append(key, this.state[key]);
-                this.setState({key: null});
+                this.setState({key: undefined});
             }
         }
         console.log(form);
@@ -78,7 +78,7 @@ class Form extends React.Component {
                 <p className="form_text"><span>Текст повідомлення</span></p>
                 <p className="form_text_body"><textarea name="body" onChange={this.updateState} value={this.state.body}></textarea></p>
                 <p className="form_addition"><span>Надіслати додаткове зображенння</span>
-                <input type="file" name="image" onChange={this.updateState}/></p>		
+                <input type="file" name="file" onChange={this.updateState}/></p>		
                 <p className="form_submit"><button id="form_button" onClick={this.sendForm}>Відправити</button>
                 {this.addSuccessSign()}
                 </p>

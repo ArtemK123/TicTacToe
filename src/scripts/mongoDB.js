@@ -44,50 +44,52 @@ let databaseAPI = {
         }
     },
 
+    accounts: {
+        collection: null,
+        getRecord(query, callback) {
+            this.collection.findOne(query, (err, result) => {
+                if (callback) {callback(err, result)};
+            })
+        },
+        insertRecord(account, callback) {
+            this.collection.insertOne(account, (err, res) => {
+                if (callback) {
+                    callback(err, res);
+                }
+            });
+        },
+        updateRecord(query, changes, callback) {
+            this.collection.updateOne(
+                query,
+                {$set: changes}, 
+                callback
+            );
+        }
+    },
+
     game : {
         collection: null,
-        init : function() {
-            //for substitutability with sqlite3
-        },
-        getAllRecords : function(callback) {
+        getAllRecords (callback) {
             this.collection.find().toArray((err, arr) => {
                 console.log(arr);
                 if (callback) {callback(err, arr)};
             });   
         },
-        _checkRecord : function(record) {
-            let validKeys = {
-                "source" : "string", 
-                "record" : "string", 
-                "timestamp": "string"
-            };
-
-            for (let key in record) {
-                if (typeof record[key] != validKeys[key]) {
-                    return false;
-                }
-            }
-            return true;
-        },
-        insertRecord : function (record, callback) {
+        insertRecord (record, callback) {
             console.log(`Inserting into Game_records: `);
             console.log(record);
-            if (this._checkRecord(record)) {
-                this.collection.insertOne(record, callback);
-            }
-            else {
-                callback(new Error("Invald record"));
-            }
-        },
+            this.collection.insertOne(record, callback);
+        }
     },
-    open: function(callback) {
+    open (callback) {
         const mongoClient = new MongoClient("mongodb://localhost:27017/", {useNewUrlParser: true});
         mongoClient.connect((err, client) => {
             if (!err) {
                 this.client = client;
                 this.db = client.db("tictactoeDB");
                 this.feedback.collection = this.db.collection("feedback");
-                this.game.collection = this.db.collection("game");        
+                this.game.collection = this.db.collection("game");   
+                this.accounts.collection = this.db.collection("accounts");     
             }   
             callback(err);
         })
@@ -101,7 +103,7 @@ let databaseAPI = {
         }
         else {
             console.log("Client isn`t exist");
-            callback(new Error);
+            callback(new Error());
         }
     }
 }
