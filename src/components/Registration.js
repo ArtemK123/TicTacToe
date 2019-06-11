@@ -1,5 +1,5 @@
 import React from 'react';
-import {Redirect} from 'react-router-dom'
+import {Link, Redirect} from 'react-router-dom'
 const SHA256 = require("crypto-js/sha256");
 
 class Registration extends React.Component {
@@ -87,8 +87,9 @@ class Registration extends React.Component {
                 <span className="title">Password Again</span><input name="password_again" type="password" onChange={this.updateState}/><br/>
                 <span className="title">Name</span><input name="name" onChange={this.updateState}/>
                 {this.checkEmptyFields()}<br/>
-                <button onClick={this.submit}>Register</button>
+                <button onClick={this.submit}>Register</button><br/>
                 {(this.state.isSuccess) ? <Redirect to='/login'/> : null}
+                <span><Link to="/login">Sign in</Link></span>
             </div>
         )
     }

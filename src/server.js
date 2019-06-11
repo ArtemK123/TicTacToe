@@ -17,7 +17,6 @@ const server = http.createServer();
 server.listen(8080, () => console.log("Node server is running on port 8080"));
 const wss = new WebSocket.Server({ port: 8000 }, () => {console.log("WebSocket server is running on port 8000")});
 
-let rooms = [];
 const jwtKey = "shhhh";
 
 const feedbackDB = database.feedback;
@@ -261,42 +260,6 @@ let handleMap = {
                         res.end();
                     }
                 })
-            } 
-            else if (vars.query === "startGame") {
-                accountsDB.getRecord({jwt: vars.jwt}, (err, record) => {
-                    if (err) throw err;
-                    if (!record) {
-                        res.writeHead(203, "Player should sign in first");
-                        res.end(JSON.stringify({redirectUrl:"/login", result: "redirect"}));    
-                    }
-                    else {
-                        let availableRoom = null;
-                        for (let room of rooms) {
-                            if (room.clients.length < 2) {
-                                availableRoom = room;
-                            }
-                        }
-                        if (!availableRoom) {
-                            let index = rooms.length;
-                            if (index > 20) {
-                                res.writeHead(204, "All rooms are full");
-                                res.end(JSON.stringify({result: "denied"}));
-                            }
-                            availableRoom = {
-                                id: index,
-                                clients: [],
-                                footPrint: null,
-                                isXNext: true,
-                                isPlaying: false
-                            };
-                            rooms.push(availableRoom);
-                        }
-                        // placeholder for preventing concurency issues
-                        availableRoom.clients.push("Placeholder");
-                        res.writeHead(200, "Found");
-                        res.end(JSON.stringify({roomId: availableRoom.id, result: "found"}));
-                    } 
-                })
             }
         }
     },
@@ -317,119 +280,218 @@ let handleMap = {
     }
 }
 
-let createCombinations = function() {
-    let winningCombinations = [];
-    let diagonalCombination1 = [];
-    let diagonalCombination2 = [];
+let TicTacToe = function() {
+    //global class for managing games
 
-    for (let i = 0; i < 5; i++) {
-        let horizontalCombination = [];
-        let verticalCombination = [];
-        for (let j = 0; j < 5; j++) {
-            horizontalCombination.push(i * 5 + j);
-            verticalCombination.push(j * 5 + i);
+    this.games = [];
+    this.freeUsers = [];
+    this.users = {};
+    
+    this.start = (user, callback) => {
+        if (this.freeUsers.length > 0) {
+            let opponent = this.freeUsers.shift();
+            let game = new Game(user, opponent);
+            let id = this.games.length
+            this.games[id] = game;
+            this.users[user] = id;
+            this.users[opponent] = id;
+            callback(true, id, opponent);
         }
-        winningCombinations.push(horizontalCombination);
-        winningCombinations.push(verticalCombination);
-        diagonalCombination1.push(5 * i + i);
-        diagonalCombination2.push(5 * i + (4 - i));
+        else {
+            this.freeUsers.push(user);
+            callback(false);
+        }
     }
-    winningCombinations.push(diagonalCombination1);
-    winningCombinations.push(diagonalCombination2);
-    return winningCombinations;
+    this.end = (user, callback) => {
+        let indexInFree = this.freeUsers.indexOf(user);
+        if (indexInFree !== -1) {
+            this.freeUsers.splice(indexInFree, 1);
+        }
+        if (this.users[user] === undefined) return;
+        let gameId = this.users[user];  
+        if(this.games[gameId] === undefined) return;
+        let game = this.games[gameId];
+        let winner = null;
+        let opponent = null
+        // wierd winner behaviour - should be reversed
+        if (user === game.x) {
+            winner = "X";
+            opponent = game.o
+        }
+        else {
+            winner = "O"
+            opponent = game.x;
+        }
+        delete this.games[gameId];
+        game = null;
+        delete this.users[user];
+        callback(opponent, winner);
+    }
+    this.step = (gameId, i, callback) => {
+        this.games[gameId].step(i, callback);
+    }
 }
 
-wss.checkWinner = function(footPrint) {
-    for (let i = 0; i < this.winningCombinations.length; i++) {
-        let positions = this.winningCombinations[i];
-        let winner = footPrint[positions[0]];
-        let isWinner = true;
-        for (let i = 1; i < positions.length; i++) {
-            if (!winner || winner !== footPrint[positions[i]]) {
-                isWinner = false;          
+let Game = function(user, opponent) {
+    this.board = Array(24).fill(null);
+    this.x = user;
+    this.o = opponent;
+    this.state = null;
+    this.turn = "X";
+    this.winningCombinations = null;
+
+    this.checkWinner = () => {
+        let isDraw = true;
+        for (let i = 0; i < this.board.length; i++) {
+            if (this.board[i] === null) {
+                isDraw = false;
+                break;
             }
-        } 
-        if (isWinner) {
-            return winner;
         }
+        if (isDraw) return "draw";
+        for (let i = 0; i < this.winningCombinations.length; i++) {
+            let positions = this.winningCombinations[i];
+            let winner = this.board[positions[0]];
+            let isWinner = true;
+            for (let i = 1; i < positions.length; i++) {
+                if (!winner || winner !== this.board[positions[i]]) {
+                    isWinner = false;          
+                }
+            } 
+            if (isWinner) {
+                return winner;
+            }
+        }
+        return null;
     }
-    return null
+    this._createCombinations = function() {
+        let winningCombinations = [];
+        let diagonalCombination1 = [];
+        let diagonalCombination2 = [];
+    
+        for (let i = 0; i < 5; i++) {
+            let horizontalCombination = [];
+            let verticalCombination = [];
+            for (let j = 0; j < 5; j++) {
+                horizontalCombination.push(i * 5 + j);
+                verticalCombination.push(j * 5 + i);
+            }
+            winningCombinations.push(horizontalCombination);
+            winningCombinations.push(verticalCombination);
+            diagonalCombination1.push(5 * i + i);
+            diagonalCombination2.push(5 * i + (4 - i));
+        }
+        winningCombinations.push(diagonalCombination1);
+        winningCombinations.push(diagonalCombination2);
+        return winningCombinations;
+    }
+    this.winningCombinations = this._createCombinations();
+    this.step = function (i, callback) {
+        if (this.board[i] != null) return;
+        this.board[i] = this.turn;
+        this.turn = (this.turn === "X") ? "O" : "X";
+        callback(this.checkWinner(), this.board, this.turn);
+    }
 }
 
-wss.winningCombinations = createCombinations();
+let tictactoe = new TicTacToe();
 
 wss.on('connection', function connection(client) {
+    console.log(`New player connected`);
     client.on('message', function incoming(json) {
         try {
             let message = JSON.parse(json);
-            if (message.query === "start") {
-                accountsDB.getRecord({'jwt' : message.jwt}, (err, record) => {
-                    if (!record) {
-                        client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
-                    }
-                    else {
-                        //create new game here
-                    }
-                });
-
-            }
-            else if (message.query === "turn") {
-                accountsDB.getRecord({'jwt' : message.jwt}, (err, record) => {
-                    if (!record) {
-                        client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
-                    }
-                    else {
-                        // Change board. Check winner.
-                    }
-                });
-            }
-
-            //     let index = rooms[request.roomId].clients.indexOf("Placeholder");
-            //     if (index === 0) {
-            //         // first player in the room
-            //         rooms[request.roomId].clients[index] = client;
-            //         client.room = request.roomId;
-            //         client.jwt = request.jwt;
-            //         client.sign = "X";
-            //         client.send(JSON.stringify({query: "change_state", state: "serching", sign: "X"}));
-            //     }
-            //     else if (index === 1) {
-            //         // second player in the room
-            //         rooms[request.roomId].clients[index] = client;
-            //         client.room = request.roomId;
-            //         client.room.isPlaying = true;
-            //         client.sign = "O";
-            //         client.jwt = request.jwt;
-            //         client.send(JSON.stringify({query: "change_state", state: "found", sign: "O"}));
-            //     }
-            //     else {
-            //         throw new Error("Wrong index of client");
-            //     }
-            // }
-            // else if (request.query === "make_move") {
-            //     if (request.jwt !== client.jwt) throw new Error("Wrong jwt");
-            //     let sign = (client.room.isXNext) ? "X" : "O";
-            //     client.room.isXNext = !client.room.isXNext;
-            //     client.room.footPrint[request.i] = sign;
-            //     let pushMessageToRoom = function(message, room) {
-            //         room.clients[0].send(message);
-            //         room.clients[1].send(message);
-            //     }
-            //     let winner = wss.checkWinner(client.room.footPrint);
-            //     if (winner) {
-            //         // updating accounts
-            //         accountsDB.getRecord({jwt: client.room.clients[0].jwt}, (err, record) => {
-            //             (winner === "X") ? record.wins++ : record.loses++;
-            //             accountsDB.updateRecord({jwt: client.room.clients[0].jwt}, record);
-            //         });
-            //         accountsDB.getRecord({jwt: client.room.clients[1].jwt}, (err, record) => {
-            //             (winner === "O") ? record.wins++ : record.loses++;
-            //             accountsDB.updateRecord({jwt: client.room.clients[1].jwt}, record);
-            //         });
-            //         pushMessageToRoom({query: "change_state", "winner": winner, footPrint: client.room.footPrint}, client.room);
-            //     }
-            //     pushMessageToRoom({query: "new_turn", footPrint: client.room.footPrint, isXNext: client.room.isXNext}, client.room);
-            // } 
+            accountsDB.getRecord({'jwt' : message.jwt}, (err, record) => {
+                if (!record) {
+                    client.send(JSON.stringify({query: "redirect", redirectUrl: "/login"}));
+                    return;
+                }
+                client.jwt = jwt;
+                if (message.query === "start") {
+                    tictactoe.start(client, (isStarted, gameId, opponent) => {
+                        if (isStarted) {
+                            client.send(JSON.stringify({
+                                query: "start",
+                                sign: "O",
+                                "gameId": gameId
+                            }));
+                            opponent.send(JSON.stringify({
+                                query: "start",
+                                sign: "X",
+                                "gameId": gameId
+                            }));
+                        }
+                        else {
+                            client.send(JSON.stringify({query: "wait"}));
+                        }
+                    })
+                }
+                else if (message.query === "step") {
+                    tictactoe.step(message.gameId, message.i, (winner, footPrint, turn) => {
+                        let game = tictactoe.games[message.gameId];
+                        let record = JSON.stringify({
+                            query: "step",
+                            'footPrint': footPrint,
+                            'turn': (winner) ? winner : turn
+                        });
+                        game.x.send(record);
+                        game.o.send(record);
+                        if (winner) {
+                            record = JSON.stringify({
+                                query: "gameover",
+                                winner: winner
+                            });
+                            game.x.send(record);
+                            game.o.send(record);
+                            if (winner !== "draw") {
+                                accountsDB.getRecord({jwt: game.x.jwt}, (err, record) => {
+                                    if (record) {
+                                        (winner === "X") ? record.wins++ : record.loses++;
+                                        accountsDB.updateRecord({jwt: record.jwt}, record, () => {
+                                            console.log("X account updated");    
+                                        });    
+                                    }
+                                })
+                                accountsDB.getRecord({jwt: game.o.jwt}, (err, record) => {
+                                    if (record) {
+                                        (winner === "O") ? record.wins++ : record.loses++;
+                                        accountsDB.updateRecord({jwt: record.jwt}, record, () => {
+                                            console.log("O account updated");    
+                                        });    
+                                    }
+                                })
+                            }
+                        };
+                    });
+                }
+                else if (message.query === "disconnect") {
+                    tictactoe.end(client, (opponent, winner) => {
+                        console.log(`Player disconnected`);
+                        accountsDB.getRecord({jwt: client.jwt}, (err, record) => {
+                            if (record) {
+                                record.loses++;
+                                accountsDB.updateRecord({jwt: record.jwt}, record, () => {
+                                    console.log("Liver account updated");
+                                });    
+                            }
+                        })
+                        if (opponent) {
+                            opponent.send(JSON.stringify({
+                                query: "gameover",
+                                winner
+                            }));
+                            accountsDB.getRecord({jwt: opponent.jwt}, (err, record) => {
+                                if (record) {
+                                    record.wins++;
+                                    accountsDB.updateRecord({jwt: record.jwt}, record, () => {
+                                        console.log("Winner account updated");
+                                    });    
+                                }
+                            })
+                        }                        
+                    })
+                }
+            })
         } 
         catch (err) {
             console.log(err.message);

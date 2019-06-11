@@ -47,7 +47,8 @@ class Login extends React.Component {
                 {(() => {
                     if (this.state.message !== "") return <span className="message">{this.state.message}</span>}
                 )()}<br/>
-                <span>Don`t have an account?</span><Link to="/registration">Sign up</Link>
+                <span>Don`t have an account?</span><Link to="/registration">Sign up</Link><br/>
+                <span><Link to="/">On main page</Link></span>
                 {(this.state.isLoggined) ? <Redirect to="/"/> : null}
             </div>
         )

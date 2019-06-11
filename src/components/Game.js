@@ -64,21 +64,13 @@ function Square(props) {
 class Gamearea extends React.Component {
     constructor(props) {
         super(props);
-          
-        // fetch(`/game?query=getName&jwt=${localStorage.getItem('jwt')}`)
-        // .then((res) => ((res) ? res.json() :  null))
-        // .then((record) => {
-        //     if (record && record.name) {
-        //         this.setState({'name': record.name});
-        //     }
-        // })
         this.state = {
             squares: Array(24).fill(null),
             name: null,
             redirectUrl: null,
             gameState: "loaded",
-            isXNext: true,
-            gameid: -1,
+            turn: null,
+            gameId: -1,
             sign: null
         };    
     }
@@ -86,41 +78,15 @@ class Gamearea extends React.Component {
         if (this.state.name !== null) {
             return <span className="name">Hello, {this.state.name}</span>;
         } 
-    }
-    checkState() {
-        if (this.state.gameState === "") {
-            return <span className="stateTitle">Press start</span>
-        }
-        else if (this.state.gameState === "searching") {
-            return <span className="stateTitle">Searching for opponent</span>    
-        }
-        else if (this.state.gameState === "playing") {
-            return <span className="stateTitle">Game found, let`s play</span>
-        }
-        else if (this.state.gameState === "X" || this.state.gameState === "O") {
-            return <span className="stateTitle">Winner - {this.state.gameState}</span>
+        else {
+            return <span className="name">You should sign in first</span>;
         }
     }
-    handleClick(i) {
-        if (this.state.gameState === "playing") {
-            console.log(this.sign, this.state.isXNext);
-            if ((this.state.isXNext && this.sign === "X") || (!this.state.isXNext && this.sign === "O")) {
-                console.log("data is sent");
-                this.webSocket.send(JSON.stringify({
-                    query: "make_move",
-                    cell: i,
-                    jwt: localStorage.getItem('jwt'),
-                    sign: this.sign
-                }))
-            }
-        }
-    }
-    componentWillUnmount() {
-        if (this.webSocket) this.webSocket.close();
-    }
-
     startGame(event) {
         let token = localStorage.getItem("jwt");
+        if (!token) {
+            return    
+        }
         if (!this.webSocket) {
             let socket = new WebSocket("ws://localhost:8000");
             socket.onopen = () => {
@@ -132,26 +98,35 @@ class Gamearea extends React.Component {
             };
             socket.onmessage = (mEvent) => {
                 let message = JSON.parse(mEvent.data);
-                if (message.query === "change_state") {
-                    if (message.state === "init") {
-                        this.setState({
-                            gameId: message.gameId,
-                            sign: message.sign,
-                            isXNext: ((this.sign === "X") ? true : false),
-                            gameState: "searching"
-                        });
-                    }
-                    if (message.state === "found") {
-                        this.setState({gameState: "playing"})
-                    }
-                    if (message.state === "gameover") {
-                        this.setState({gameState: "gameover"})
-                    }
-                }
-                if (message.query === "step") {
+                if (message.query === "redirect") {
                     this.setState({
-                        squares: message.footprint,
-                        isXNext: message.isXNext
+                        redirectUrl: message.redirectUrl
+                    })
+                }
+                else if (message.query === "wait") {
+                    this.setState({
+                        gameState: "searching"
+                    });
+                }
+                else if (message.query === "start") {
+                    this.setState({
+                        gameId: message.gameId,
+                        sign: message.sign,
+                        turn: "X",
+                        gameState: "playing",
+                        squares: new Array(24).fill(null)
+                    })
+                }
+                else if (message.query === "gameover" && this.state.gameState !== "gameover") {
+                    this.setState({
+                        gameState: "gameover",
+                        turn: message.winner
+                    });
+                }
+                else if (message.query === "step") {
+                    this.setState({
+                        squares: message.footPrint,
+                        turn: message.turn
                     });
                 }
             }
@@ -159,59 +134,79 @@ class Gamearea extends React.Component {
         else {
             this.webSocket.send(JSON.stringify({
                 jwt: token,
+                query: "disconnect"
+            }))
+            this.webSocket.send(JSON.stringify({
+                jwt: token,
                 query: "start"
             }));
+        } 
+    }
+    handleClick(i) {
+        if (this.state.gameState === "playing" && this.state.sign === this.state.turn) {
+            let record = JSON.stringify({
+                query: "step",
+                jwt: localStorage.getItem('jwt'),
+                gameId: this.state.gameId,
+                "i": i,
+                sign: this.sign
+            });
+            this.webSocket.send(record);
         }
-        
-        // if (this.state.gameState === 'loaded' || this.state.gameState === 'gameover') {
-        //     let webSocket = new WebSocket("ws://localhost:8000");
-        //     webSocket.onmessage = (message) => {
-        //         let record = JSON.parse(message.data);   
-        //     };
-        //     localStorage.setItem({"webSocket": webSocket});
+    }
+    componentDidMount() {
+        let token = localStorage.getItem('jwt');
+        if (token) {
+            fetch(`/game?query=getName&jwt=${token}`)
+                .then(res => res.json())
+                .then(message => this.setState({name: message.name}))
+                .catch(err => console.log(err));
+        }
+        else {
+            this.setState({name: null});
+        }
+    }
 
-            // fetch(`/game?query=startGame&jwt=${token}`)
-            // .then(res => res.json())
-            // .then(response => {
-            //     console.log(response);
-            //     if (response.result === "found") {
-            //         this.roomId = response.roomId;
-            //         this.webSocket = new WebSocket("ws://localhost:8000");
-            //         this.webSocket.onopen = () => {
-            //             this.webSocket.send(JSON.stringify({
-            //                 query: "init",
-            //                 roomId: this.roomId,
-            //                 jwt: localStorage.getItem("jwt")
-            //             }));
-            //         }
-            //         this.webSocket.onmessage = (json) => {
-            //             try {
-            //                 let message = JSON.parse(json.data);
-            //                 if (message.query === "change_state") {
-            //                     if (message.state === "searching") {
-            //                         this.setState({gameState: "searching"});
-            //                     }
-            //                     else if (message.state === "found") {
-            //                         this.setState({gameState: "playing"});
-            //                         this.sign = message.sign;
-            //                     }
-            //                     else if (message.state === "gameover") {
-            //                         this.setState({gameState: message.winner, history: message.footPrint});
-            //                     }
-            //                 }
-            //                 if (message.query === "new_turn") {
-            //                     this.setState({history: message.footPrint, isXNext: message.isXNext});
-            //                 }
-            //             } 
-            //             catch (err) {
-            //                 console.log(err);
-            //             }
-            //         }
-            //     }
-            //     else if (response.result === "redirect") {
-            //         this.setState({redirectUrl: response.redirectUrl});
-            //     }
-            // }).catch(err => console.log(err)); 
+    componentWillUnmount() {
+        console.log("Will unmount");
+        if (this.webSocket) {
+            this.webSocket.send(JSON.stringify({
+                query: "disconnect"
+            }));
+            this.webSocket.close()
+        }
+    }
+    createTitle() {
+        if (this.state.gameState === "loaded") {
+            return <span className="stateTitle">Press start</span>
+        }
+        else if (this.state.gameState === "searching") {
+            return <span className="stateTitle">Searching for opponent</span>    
+        }
+        else if (this.state.gameState === "playing") {
+            return (<span className="stateTitle">
+                    {(() => {
+                    if (this.state.sign === this.state.turn) {
+                        return `Your turn - ${this.state.turn}`;
+                    }
+                    else {
+                        return `Opponents turn - ${this.state.turn}`;
+                    }})()}
+                </span>)
+        }
+        else if (this.state.gameState === "gameover") {
+            return <span className="stateTitle">{(() => {
+                if (this.state.turn === "X") {
+                    return ((this.state.sign === "X" ? "You win - " : "You lose - ") + this.state.sign);    
+                }
+                else if (this.state.turn === "O") {
+                    return ((this.state.sign === "O" ? "You win - " : "You lose - ") + this.state.sign);
+                }
+                else if (this.state.turn === "draw") {
+                    return "Draw - " + this.state.sign
+                }
+            })()}</span>
+        }
     }
     render() {
         return (
@@ -222,9 +217,9 @@ class Gamearea extends React.Component {
                     onClick={i => this.handleClick(i)}
                     />
                 </div>
-                <div className="game-info">>
+                <div className="game-info">
                     <div className="nameBox">{this.showName()}</div>
-                    <div className="searchingBox">{this.checkState()}</div>
+                    <div className="titleBox">{this.createTitle()}</div>
                 </div>
                 <button className="startButton" onClick={this.startGame.bind(this)}>Start game</button>
                 {(() => {
@@ -236,12 +231,25 @@ class Gamearea extends React.Component {
 }
 
 class Game extends React.Component {
+    
+    createLoginLogoutLink() {
+        if (localStorage.getItem('jwt')) {
+            return <li><Link to="/" onClick={() => {
+                localStorage.removeItem('jwt');
+                this.setState({});
+            }}>Вийти</Link></li>
+        }
+        else {
+            return <li><Link to="/login">Увійти</Link></li>
+        }
+    }
     render() {
         return (<div id='game_main'>
             <header>
                 <h3>Хрестики-нулики</h3>
                     <nav>
                         <ul>
+                            {this.createLoginLogoutLink()}
                             <li><Link to="/about">Про гру</Link></li>
                             <li><Link to="/contacts">Контакти</Link></li>
                         </ul>
